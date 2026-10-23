@@ -1,0 +1,10 @@
+id_*
+!id_*.pub
+*.pem
+.env
+*.tfstate
+.terraform/
+*.tfvars
+
+CLAUDE.md
+.claude/settings.local.json
