@@ -1,0 +1,7 @@
+Incident #1: runcmd script aborted on first boot (VM devbox, 2026-10-28)
+Command run from the Mac after the failed first boot:
+
+$ multipass exec devbox -- grep -n -i -E "error|fail|warning|illegal" /var/log/cloud-init-output.log
+139:/var/lib/cloud/instance/scripts/runcmd: 2: set: Illegal option -o pipefail
+140:2026-10-28 13:55:29,420 - cc_scripts_user.py[WARNING]: Failed to run module scripts_user (scripts in /var/lib/cloud/instance/scripts)
+141:2026-10-28 13:55:29,420 - log_util.py[WARNING]: Running module scripts_user (<module 'cloudinit.config.cc_scripts_user' from '/usr/lib/python3/dist-packages/cloudinit/config/cc_scripts_user.py'>) failed
