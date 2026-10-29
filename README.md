@@ -35,7 +35,7 @@ I chose to run everything locally so the project costs nothing and does not depe
 ```
 app/                  Flask app and tests (planned)
 Dockerfile            Phase 2 (planned)
-cloud-init.yaml       Phase 1 (in progress, not committed yet)
+cloud-init.yaml       Phase 1 (in progress)
 deploy/               Phase 4 (planned)
 .github/workflows/    Phase 3 (planned)
 terraform/            Phase 5 (planned)
