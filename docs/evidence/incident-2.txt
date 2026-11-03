@@ -1,0 +1,42 @@
+Experiment on throwaway VM devboxtest (2026-11-03): GATEWAY_IP misspelled on purpose.
+
+$ multipass launch noble --name devboxtest --cpus 2 --memory 2G --disk 15G --cloud-init ~/Documents/Projects/devops-project/cloud-init.yaml && multipass exec devboxtest -- cloud-init status --wait --long
+Launched: devboxtest
+status: error
+extended_status: error - done
+boot_status_code: enabled-by-generator
+last_update: Thu, 01 Jan 1970 00:00:54 +0000
+detail: DataSourceNoCloud [seed=/dev/vda]
+errors:
+	- ('scripts_user', RuntimeError('Runparts: 1 failures (runcmd) in 1 attempted commands'))
+recoverable_errors:
+WARNING:
+	- Failed to run module scripts_user (scripts in /var/lib/cloud/instance/scripts)
+	- Running module scripts_user (<module 'cloudinit.config.cc_scripts_user' from '/usr/lib/python3/dist-packages/cloudinit/config/cc_scripts_user.py'>) failed
+
+$ multipass exec devboxtest -- tail -n 10 /var/log/cloud-init-output.log
+FINISHED SETTING UP DOCKER.
+Getting the Default Gateway Address of the VM...
+/var/lib/cloud/instance/scripts/runcmd: 35: GATEWAY_IP: GATEWAY_IP is empty
+2026-11-03 15:38:52,989 - cc_scripts_user.py[WARNING]: Failed to run module scripts_user (scripts in /var/lib/cloud/instance/scripts)
+2026-11-03 15:38:52,989 - log_util.py[WARNING]: Running module scripts_user (<module 'cloudinit.config.cc_scripts_user' from '/usr/lib/python3/dist-packages/cloudinit/config/cc_scripts_user.py'>) failed
+Cloud-init v. 26.1-0ubuntu1~24.04.1 finished at Tue, 03 Nov 2026 15:38:53 +0000. Datasource DataSourceNoCloud [seed=/dev/vda].  Up 54.60 seconds
+(blank lines and apt "outdated binaries" messages trimmed)
+
+State of the VM after the failed first boot:
+
+$ multipass exec devboxtest -- docker --version
+Docker version 29.9.2, build a82e528
+
+$ multipass exec devboxtest -- sudo ufw status verbose
+Status: inactive
+
+$ multipass exec devboxtest -- dpkg -l ufw
+ii  ufw            0.36.2-6     all          program for managing a Netfilter firewall
+
+$ multipass exec devboxtest -- sudo ss -tlnp
+LISTEN 0 4096 127.0.0.53%lo:53  (systemd-resolve)
+LISTEN 0 4096 0.0.0.0:22        (sshd)
+LISTEN 0 4096 127.0.0.54:53     (systemd-resolve)
+LISTEN 0 4096 [::]:22           (sshd)
+(Process column shortened)
