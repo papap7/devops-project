@@ -4,11 +4,11 @@ A self-directed learning project: a tested Flask app, packaged in Docker, built 
 
 I am building it phase by phase to learn DevOps fundamentals, and I keep notes on everything that breaks in [`docs/incident-log.md`](docs/incident-log.md).
 
-## Status (updated October 29, 2026)
+## Status (updated November 3, 2026)
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Self-configuring server (cloud-init, Docker, UFW, SSH key) | In progress |
+| 1 | Self-configuring server (cloud-init, Docker, UFW, SSH key) | Done ([evidence](docs/evidence/phase1.md)) |
 | 2 | Containerize the Flask app | Not started |
 | 3 | CI with GitHub Actions (test, build, push to GHCR) | Not started |
 | 4 | Automated deployment (pull-based, health check, rollback) | Not started |
@@ -35,7 +35,7 @@ I chose to run everything locally so the project costs nothing and does not depe
 ```
 app/                  Flask app and tests (planned)
 Dockerfile            Phase 2 (planned)
-cloud-init.yaml       Phase 1 (in progress)
+cloud-init.yaml       Phase 1 (done)
 deploy/               Phase 4 (planned)
 .github/workflows/    Phase 3 (planned)
 terraform/            Phase 5 (planned)
