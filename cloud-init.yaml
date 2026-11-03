@@ -44,4 +44,15 @@ runcmd:
       containerd.io \
       docker-buildx-plugin \
       docker-compose-plugin
-    echo "FINISHED."
+    echo "FINISHED SETTING UP DOCKER."
+
+    echo "Getting the Default Gateway Address of the VM..."
+    GATEWAY_IP=$(ip route | awk '/^default/ {print $3}')
+    echo "${GATEWAY_IP:?GATEWAY_IP is empty}"
+
+    echo "UFW setup starting..."
+    apt install -y ufw
+    ufw allow proto tcp from $GATEWAY_IP to any port 22 comment 'Macbook SSH'
+    ufw allow 80/tcp
+    ufw --force enable
+    echo "Finished UFW setup."
