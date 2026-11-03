@@ -4,8 +4,30 @@ Every failure I hit, newest first. One entry per incident. The goal is to show h
 
 | # | Date | Phase | Title | Time lost |
 |---|------|-------|-------|-----------|
+| 3 | 2026-11-04 | 1 | Experiment: invalid cloud-init.yaml still booted, status said done | 35 min |
 | 2 | 2026-11-03 | 1 | Experiment: empty GATEWAY_IP stopped first boot, VM left without a firewall | 5 min |
 | 1 | 2026-10-28 | 1 | runcmd script aborted, Docker never installed | 30 min |
+
+---
+
+## #3: Experiment: invalid cloud-init.yaml still booted, status said done
+**Date:** 2026-11-04 | **Phase:** 1 | **Component:** cloud-init (schema, user-data) | **Time lost:** 35 min
+
+**This was a deliberate experiment on a throwaway VM (`devboxtest`), not a surprise failure.** First run: I changed the header `#cloud-config` to `# cloud-config` (with a space) and `package_update: true` to `package-update:` with `- true` underneath (hyphenated key, list instead of boolean). Second run: only the header change, to separate the two.
+
+**My predictions:** the schema check would catch it, the launch would not fail, and `cloud-init status` would report a syntax error. The first two were right. The third was wrong.
+
+**Symptom:** `multipass launch` printed `Launched: devboxtest`, and `cloud-init status --wait --long` returned `status: done` with `extended_status: degraded done`, `errors: []`, and a single `recoverable_errors` warning: `cloud-config failed schema validation!`. The runcmd script ran to the end: Docker and UFW were set up, and I could SSH in as `ubuntu` with my key and `id` showed the `docker` group.
+
+**Diagnosis:** The warning told me to run `sudo cloud-init schema --system` inside the VM. That reported `package_update: [True] is not of type 'boolean'`. The key name in the message did not match what I typed (`package-update`), which showed that cloud-init treats the hyphenated key as `package_update`. The value `- true` made it a list, `[True]`, where a boolean is expected. `/var/log/cloud-init-output.log` had the same warning and showed the script finishing. For the header, I noticed on the first VM that `# cloud-config` had become `#cloud-config`. On the second run (header change only) I read `/var/lib/cloud/instance/user-data.txt` on the VM: it starts with `#cloud-config`, no space, so Multipass rewrote the file before cloud-init saw it. This run therefore never tested what cloud-init does with a wrong header. Multipass hides that mistake.
+
+**Root cause:** Two separate things. (1) Schema validation in cloud-init is advisory: a wrong type is logged as a warning and the boot continues, so an invalid file produced a VM that looked healthy (`status: done`, `errors: []`). The only signal was `degraded done` and one line under `recoverable_errors`. A wrong type is also not a YAML syntax error, because the file was valid YAML. (2) Multipass parses and rewrites my YAML, so a bad header never reaches cloud-init.
+
+**Fix:** Nothing to fix in the project. Cleanup after the experiment: restore `cloud-init.yaml` (`#cloud-config`, `package_update: true`), check that `git diff` is empty, and delete `devboxtest`. Nothing from the experiment is committed.
+
+**Prevention:** `status: done` does not mean healthy. After every launch check `extended_status` and `recoverable_errors`, not only `status`. Validate the file before launching: running `cloud-init schema --config-file ... --annotate` in the existing `lab` VM rejected the broken file with `Invalid schema: user-data` and needed no new VM. Running the check on the Mac does not work: Homebrew has no `cloud-init` formula, and `pip install cloud-init` in a virtual environment (Python 3.15.2) fails with `ERROR: No matching distribution found for cloud-init (from versions: none)`. I did not find out whether the cause is the package, the platform or the new Python version. A later improvement is to run the same schema check in GitHub Actions on a Linux runner, so every push validates the file.
+
+**Evidence:** [`docs/evidence/incident-3.txt`](evidence/incident-3.txt) (status output, schema error, SSH check, the `lab` check, the header check and the pip result).
 
 ---
 

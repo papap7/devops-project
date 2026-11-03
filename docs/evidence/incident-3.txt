@@ -1,0 +1,55 @@
+Experiment on throwaway VM devboxtest (2026-11-04): invalid cloud-init.yaml on purpose.
+Edits: "#cloud-config" -> "# cloud-config"; "package_update: true" -> "package-update:" with "- true" underneath.
+
+$ multipass launch noble --name devboxtest --cpus 2 --memory 2G --disk 15G --cloud-init ~/Documents/Projects/devops-project/cloud-init.yaml && multipass exec devboxtest -- cloud-init status --wait --long
+Launched: devboxtest
+status: done
+extended_status: degraded done
+boot_status_code: enabled-by-generator
+last_update: Thu, 01 Jan 1970 00:00:44 +0000
+detail: DataSourceNoCloud [seed=/dev/vda]
+errors: []
+recoverable_errors:
+WARNING:
+	- cloud-config failed schema validation! You may run 'sudo cloud-init schema --system' to check the details.
+
+$ multipass exec devboxtest -- sudo cloud-init schema --system
+Found cloud-config data types: user-data, vendor-data, network-config
+
+1. user-data at /var/lib/cloud/instances/devboxtest/cloud-config.txt:
+  Invalid user-data /var/lib/cloud/instances/devboxtest/cloud-config.txt
+  Error: Cloud config schema errors: package_update: [True] is not of type 'boolean'
+(vendor-data and network-config: valid; vendor-data deprecation warning not related to my file)
+Error: Invalid schema: user-data
+
+$ multipass exec devboxtest -- tail -n 20 /var/log/cloud-init-output.log
+(end of the log: gateway 192.168.252.1, "UFW setup starting...", "Rules updated", "Firewall is active and enabled on system startup", "Finished UFW setup.")
+(the log also has: schema.py[WARNING]: cloud-config failed schema validation!)
+
+$ ssh ubuntu@192.168.252.9 -i ~/.ssh/id_devbox
+(login worked with my key)
+$ id
+uid=1000(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),4(adm),24(cdrom),27(sudo),30(dip),104(lxd),1000(docker)
+
+Pre-launch check of the same broken file, in the existing lab VM (no new VM):
+$ multipass exec lab -- sudo cloud-init schema --config-file /tmp/cloud-init.yaml --annotate
+Error: Invalid schema: user-data
+(only the last line was saved; the annotated output was not captured)
+
+Header-only break, second devboxtest (only "# cloud-config" changed in my file):
+$ multipass exec devboxtest -- sudo head -n 5 /var/lib/cloud/instance/user-data.txt
+#cloud-config
+package_update: true
+groups:
+  - docker
+users:
+(the VM has "#cloud-config" without the space: Multipass rewrote my header)
+
+Mac: "brew install cloud-init" -> Warning: No available formula with the name "cloud-init".
+$ python3 --version
+Python 3.15.2
+$ python3 -m venv ~/.venvs/cloudinit && source ~/.venvs/cloudinit/bin/activate
+(cloudinit) $ pip install cloud-init
+ERROR: Could not find a version that satisfies the requirement cloud-init (from versions: none)
+ERROR: No matching distribution found for cloud-init
+(does not work on macOS: cause not investigated, could be the package, the platform or Python 3.15)
