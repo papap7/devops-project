@@ -4,9 +4,36 @@ Every failure I hit, newest first. One entry per incident. The goal is to show h
 
 | # | Date | Phase | Title | Time lost |
 |---|------|-------|-------|-----------|
+| 4 | 2026-11-05 | 1 | Experiment: stopping docker.service did not stop Docker, the socket did | 30 min |
 | 3 | 2026-11-04 | 1 | Experiment: invalid cloud-init.yaml still booted, status said done | 35 min |
 | 2 | 2026-11-03 | 1 | Experiment: empty GATEWAY_IP stopped first boot, VM left without a firewall | 5 min |
 | 1 | 2026-10-28 | 1 | runcmd script aborted, Docker never installed | 30 min |
+
+---
+
+## #4: Experiment: stopping docker.service did not stop Docker, the socket did
+**Date:** 2026-11-05 | **Phase:** 1 | **Component:** systemd (docker.service, docker.socket) | **Time lost:** 30 min
+
+**This was a deliberate experiment on a throwaway VM (`devboxtest`), not a surprise failure.** I stopped the Docker units in different combinations to see what `docker ps` does and what happens to containers with `--restart unless-stopped`.
+
+**Symptom:** after `sudo systemctl stop docker.service`, `systemctl is-active docker.service` said `inactive`, but the next `docker ps` worked and the service was `active` again. Only after stopping both units did `docker ps` fail with `Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?`.
+
+**Diagnosis:** Baseline: both units `active` and `enabled`, and `ss -xlnp` showed `/run/docker.sock` held by both `dockerd` and `systemd` (pid 1). Then, in order:
+1. Stopped `docker.service` only. systemd warned `Stopping 'docker.service', but its triggering units are still active: docker.socket`. `docker ps` started the daemon again.
+2. Stopped both units. `is-active` said `inactive` for both, `ss` showed no listener, and `docker ps` failed. `ls -l /var/run/docker.sock` still showed the socket file, so a leftover file does not mean something is listening.
+3. Started both, then stopped `docker.socket` only. Afterwards both `docker` and `docker.socket` were `inactive` and `docker ps` failed, so stopping the socket also stopped the service. `systemctl cat docker.service` shows `Requires=docker.socket`, which explains it.
+4. `is-enabled` stayed `enabled` for both units in every state.
+5. Started two containers with `--restart unless-stopped`, stopped one by hand (`manual`), then stopped and started the Docker units. Only `keep` was running after the daemon came back.
+
+**What I predicted wrong:** I predicted that stopping the socket would behave like stopping the service, with `docker ps` waking the daemon again. It does not, because with the socket stopped nothing listens on the path and nothing can start the daemon.
+
+**Root cause:** Docker uses systemd socket activation. systemd owns the listening socket (`docker.socket`) and starts `docker.service` when a client connects, so stopping only the service is undone by the next `docker ps`. `docker.service` has `Requires=docker.socket`, so stopping the socket stops the service as well. `enabled` and `active` are separate: stopping a unit does not disable it, so it still comes up on the next boot. `unless-stopped` restarts a container when the daemon comes back, unless I stopped that container myself, which is why `manual` stayed `Exited` and `keep` came back.
+
+**Fix:** nothing to fix, the system behaved as designed. I left the VM with both units started and removed the test containers (`keep`, `manual`).
+
+**Prevention:** To stop Docker on purpose, stop `docker.socket` and `docker.service` together. Keeping it stopped across reboots is a separate step (`disable`). Do not use "`docker ps` works" as proof that nobody stopped Docker, because the socket can wake the service. In the Phase 4 deploy script, check the service state (`systemctl is-active docker`) separately from whether the API answers.
+
+**Evidence:** [`docs/evidence/incident-4.txt`](evidence/incident-4.txt) (outputs from each step).
 
 ---
 

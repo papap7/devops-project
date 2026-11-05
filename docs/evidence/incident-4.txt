@@ -1,0 +1,83 @@
+Experiment on throwaway VM devboxtest (2026-11-05): stopping docker.service and docker.socket in different combinations.
+
+0. Baseline
+$ systemctl is-active docker
+active
+$ systemctl is-active docker.socket
+active
+$ systemctl is-enabled docker docker.socket
+enabled
+enabled
+$ sudo ss -xlnp | grep docker.sock
+u_str LISTEN 0 4096 /run/docker.sock 21247 * 0 users:(("dockerd",pid=7973,fd=5),("systemd",pid=1,fd=65))
+
+1. Stop docker.service only
+$ sudo systemctl stop docker.service
+Stopping 'docker.service', but its triggering units are still active:
+docker.socket
+$ systemctl is-active docker.service
+inactive
+$ docker ps
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+$ systemctl is-active docker.service
+active
+
+2. Stop both
+$ sudo systemctl stop docker.service docker.socket
+$ systemctl is-active docker.service docker.socket
+inactive
+inactive
+$ sudo ss -xlnp | grep docker.sock
+(no output)
+$ ls -l /var/run/docker.sock
+srw-rw---- 1 root docker 0 Nov  5 10:04 /var/run/docker.sock
+$ docker ps
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+$ systemctl is-enabled docker.service docker.socket
+enabled
+enabled
+
+3. Start both, then stop the socket only
+$ sudo systemctl start docker.service docker.socket
+$ docker ps
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+$ sudo systemctl stop docker.socket
+$ systemctl is-active docker docker.socket
+inactive
+inactive
+$ docker ps
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+$ systemctl is-enabled docker docker.socket
+enabled
+enabled
+
+4. Restart policy
+$ sudo systemctl start docker.service docker.socket
+$ docker run -d --name keep --restart unless-stopped alpine sleep 3600
+(image pulled, container id printed)
+$ docker run -d --name manual --restart unless-stopped alpine sleep 3600
+$ docker stop manual
+manual
+$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND        CREATED              STATUS                        PORTS     NAMES
+e1b36d7f792d   alpine    "sleep 3600"   59 seconds ago       Exited (137) 21 seconds ago             manual
+0d103c1179f1   alpine    "sleep 3600"   About a minute ago   Up About a minute                       keep
+$ sudo systemctl stop docker.service docker.socket
+$ docker ps
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+$ sudo systemctl start docker.service docker.socket
+$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND        CREATED         STATUS                            PORTS     NAMES
+e1b36d7f792d   alpine    "sleep 3600"   2 minutes ago   Exited (137) About a minute ago             manual
+0d103c1179f1   alpine    "sleep 3600"   2 minutes ago   Up 6 seconds                                keep
+
+5. Why stopping the socket stopped the service
+$ systemctl cat docker.service | grep -E 'Requires|Wants|After'
+After=network-online.target nss-lookup.target docker.socket firewalld.service containerd.service time-set.target
+Wants=network-online.target containerd.service
+Requires=docker.socket
+$ systemctl show docker.service -p Requires -p Wants -p After
+Requires=docker.socket system.slice sysinit.target
+Wants=containerd.service network-online.target
+After=sysinit.target systemd-journald.socket docker.socket time-set.target basic.target firewalld.service containerd.service nss-lookup.t>
+(line cut to terminal width)
