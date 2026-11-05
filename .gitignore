@@ -2,6 +2,8 @@ id_*
 !id_*.pub
 *.pem
 .env
+.venv
+__pycache__/
 *.tfstate
 .terraform/
 *.tfvars
