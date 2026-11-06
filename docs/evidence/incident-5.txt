@@ -1,0 +1,27 @@
+Phase 2, 2026-11-05/06: starting the Flask app locally (repo root, Mac, venv in .venv).
+
+Layout: app/app.py contains: app = Flask(__name__)
+
+1. Venv not active in the terminal tab
+$ flask --app app run
+zsh: command not found: flask
+(prompt had no "(.venv)" prefix; after activating the venv the command was found)
+
+2. Folder and file both named "app"
+(.venv) $ flask --app app run
+Usage: flask run [OPTIONS]
+Try 'flask run --help' for help.
+
+Error: Failed to find Flask application or factory in module 'app'. Use 'app:name' to specify one.
+
+3. Second attempt: the --app flag was left out
+(.venv) $ flask app/app:app run
+Error: Failed to find Flask application or factory in module 'app'. Use 'app:name' to specify one.
+
+Usage: flask [OPTIONS] COMMAND [ARGS]...
+Try 'flask --help' for help.
+
+Error: No such command 'app/app:app'.
+
+4. Working form (as I ran it): flask --app app/app:app run
+(server started on http://127.0.0.1:5000, curl -i http://127.0.0.1:5000/health returned 200)

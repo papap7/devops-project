@@ -4,10 +4,28 @@ Every failure I hit, newest first. One entry per incident. The goal is to show h
 
 | # | Date | Phase | Title | Time lost |
 |---|------|-------|-------|-----------|
+| 5 | 2026-11-06 | 2 | flask --app app could not find the Flask application | 15 min |
 | 4 | 2026-11-05 | 1 | Experiment: stopping docker.service did not stop Docker, the socket did | 30 min |
 | 3 | 2026-11-04 | 1 | Experiment: invalid cloud-init.yaml still booted, status said done | 35 min |
 | 2 | 2026-11-03 | 1 | Experiment: empty GATEWAY_IP stopped first boot, VM left without a firewall | 5 min |
 | 1 | 2026-10-28 | 1 | runcmd script aborted, Docker never installed | 30 min |
+
+---
+
+## #5: flask --app app could not find the Flask application
+**Date:** 2026-11-06 | **Phase:** 2 | **Component:** Flask CLI (application discovery, Python imports) | **Time lost:** 15 min
+
+**Symptom:** `flask --app app run` printed `Error: Failed to find Flask application or factory in module 'app'. Use 'app:name' to specify one.` The app code was in `app/app.py` and I ran the command from the repo root.
+
+**Diagnosis:** Earlier in the same session, `flask` itself was `command not found` because the venv was not active in that terminal tab (no `(.venv)` in the prompt); activating it fixed that, and it is a separate problem. For this error I read the message, which says Flask imported a module called `app` and found no application in it. My layout has a **folder** `app/` containing a **file** `app.py`, so I checked what `--app app` would import. I then tried `flask app/app:app run`, which failed differently (`No such command 'app/app:app'`) because I had dropped the `--app` flag, so Flask read my string as a command name. The message `Use 'app:name'` pointed to the `module:variable` form.
+
+**Root cause:** `--app app` makes Flask import the name `app`. From the repo root that name matches the folder `app/`, not the file inside it, and the folder has no Flask object. The Flask object is the variable `app` inside `app/app.py`. I checked this in the installed Flask source (`flask/cli.py`, `load_app` and `prepare_import`). `--app` is split at the colon. The part before it goes through `prepare_import`, which adds a folder to `sys.path` and returns a module name. For `--app app` it adds the repo root and returns `app`, which Python resolves to the folder `app/` (no `__init__.py`, so a namespace package), not to the file `app/app.py`. For `--app app/app:app` it adds the `app/` folder and returns `app`, which then resolves to `app/app.py`.
+
+**Fix:** pointed Flask at the file and named the variable, with the flag in place: `flask --app app/app:app run`. The server started and `/health` returned 200.
+
+**Prevention:** give `--app` an explicit `module:variable` so the folder and file cannot be confused, and check that the prompt shows `(.venv)` before running `flask`. The container will start gunicorn with a `module:variable` string too, so the same rule applies there. A folder and a file with the same name invite this mistake. Open decision: rename `app/app.py` so the folder and the file differ; I will decide when I write the Dockerfile, because gunicorn takes the same `module:variable` string.
+
+**Evidence:** [`docs/evidence/incident-5.txt`](evidence/incident-5.txt) (the three error outputs and the working form).
 
 ---
 
