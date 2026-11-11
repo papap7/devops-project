@@ -42,6 +42,8 @@ On November 11, 2026 I launched the same `cloud-init.yaml` (commit [`a988013`](h
 | Checks | `status: done` with no errors; `docker run hello-world` (arm64); UFW active; SSH key login works, password login refused |
 | Network | The security group allows only SSH, only from my IP; UFW denies all other incoming traffic |
 
+![EC2 instance summary: t4g.small running in ap-southeast-1, no Elastic IP, no IAM role, IMDSv2 required](docs/evidence/img/aws-ec2-instance1.png)
+
 Before the first launch I found that my UFW rule would have locked me out on EC2: it allowed SSH only from the VM's default gateway, which is my Mac on Multipass but the VPC router on EC2. The file now checks the platform with `cloud-init query v1.cloud_name` and, on AWS, leaves the source restriction to the security group. See [incident #6](docs/incident-log.md).
 
 Evidence: [`docs/evidence/ec2-raw.txt`](docs/evidence/ec2-raw.txt) (all command output) and [`docs/evidence/img/`](docs/evidence/img/) (console screenshots).
