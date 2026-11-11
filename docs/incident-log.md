@@ -4,11 +4,37 @@ Every failure I hit, newest first. One entry per incident. The goal is to show h
 
 | # | Date | Phase | Title | Time lost |
 |---|------|-------|-------|-----------|
+| 6 | 2026-11-11 | 1 | Retyped EC2 firewall fix stopped first boot: CLOUD: parameter not set | 30 min |
 | 5 | 2026-11-06 | 2 | flask --app app could not find the Flask application | 15 min |
 | 4 | 2026-11-05 | 1 | Experiment: stopping docker.service did not stop Docker, the socket did | 30 min |
 | 3 | 2026-11-04 | 1 | Experiment: invalid cloud-init.yaml still booted, status said done | 35 min |
 | 2 | 2026-11-03 | 1 | Experiment: empty GATEWAY_IP stopped first boot, VM left without a firewall | 5 min |
 | 1 | 2026-10-28 | 1 | runcmd script aborted, Docker never installed | 30 min |
+
+---
+
+## #6: Retyped EC2 firewall fix stopped first boot: CLOUD: parameter not set
+**Date:** 2026-11-11 | **Phase:** 1 | **Component:** cloud-init (runcmd, POSIX sh), UFW | **Time lost:** 30 min
+
+**Context:** before running `cloud-init.yaml` on AWS EC2 for the first time, I reviewed it for EC2 and found that my SSH rule would lock me out there. The rule allows SSH only from the VM's default gateway. On Multipass the gateway is my Mac, but in an AWS VPC it is the VPC router, and SSH from the internet keeps my home IP as the source. The rule would never match, so UFW's default deny would drop SSH. My `${GATEWAY_IP:?}` guard would not catch it, because the value is wrong, not empty. I did not launch the old file on EC2 to watch it fail; this part was found in review. The fix: read the platform with `cloud-init query v1.cloud_name`; on `aws`, allow 22/tcp in UFW and let the EC2 security group limit the source to my IP; everywhere else, keep the gateway rule. The failure below happened while I tested that fix locally.
+
+**Symptom:** I typed the fix into `cloud-init.yaml` by hand and launched a throwaway VM (`devboxtest`). `/var/log/cloud-init-output.log` ended with `runcmd: 35: CLOUD: parameter not set`, then `Failed to run module scripts_user`. The last message from my script before it was `UFW setup starting...`, so the script stopped before `ufw --force enable`.
+
+**Diagnosis:** the error names line 35 of the generated script, so I printed that part of it: `sudo sed -n '30,40p' /var/lib/cloud/instance/scripts/runcmd`. Line 35 was `$CLOUD=$(cloud-init query ...)`. I compared it with `git diff cloud-init.yaml`, which showed the same lines, so Multipass had not changed them: the mistake was in my file. Reviewing the diff line by line showed three more mistakes in the next two lines, and that `ssh_pwauth: false` was missing.
+
+**Root cause:** four shell mistakes from retyping instead of copying:
+1. `$CLOUD=...`: shell assigns with `CLOUD=...`. The `$` reads the variable instead, and with `set -u` reading an unset variable stops the script. This is the error I saw.
+2. `echo 'CLOUD= $CLOUD'`: single quotes print `$CLOUD` literally. Double quotes expand it.
+3. `[ $CLOUD = 'aws']`: `]` must be a separate word, so it needs a space before it. Without quotes, an empty `$CLOUD` would also break the test.
+4. `] then`: `then` needs `;` or a new line before it. This is a parse error, so `sh` would not even have started the script once mistake 1 was fixed.
+
+`cloud-init schema` could not catch any of these: the YAML was valid, and the script is just a string to it.
+
+**Fix:** corrected the three lines (`CLOUD=$(...)`, `echo "Cloud= $CLOUD"`, `if [ "$CLOUD" = 'aws' ]; then`), added `ssh_pwauth: false`, deleted `devboxtest`, and committed the file as `a988013`. That commit then ran on AWS EC2 (`t4g.small`, `ap-southeast-1`): `status: done`, `extended_status: done`, no errors, and UFW showed the EC2 SSH rule. Details in the README section "Verified on AWS EC2".
+
+**Prevention:** copy code changes instead of retyping them, then read `git diff` before launching. `cloud-init schema` checks the YAML only, so also check the shell: extract the `runcmd` script and run `sh -n` on it in the `lab` VM before every launch (this is the shell check I listed as a follow-up in #1). `set -u` did its job: like the guard in #2, it stopped the script before the firewall was enabled. A half-configured VM gets deleted and rebuilt, not patched. Firewall rules should not encode a guess about the network's shape; on a cloud, restrict SSH sources where the network is defined (the security group).
+
+**Evidence:** [`docs/evidence/incident-6.txt`](evidence/incident-6.txt) (log tail, the generated script lines, the diff, the corrected lines and the EC2 result).
 
 ---
 

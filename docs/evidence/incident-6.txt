@@ -1,0 +1,48 @@
+Local test of the EC2 fix on throwaway VM devboxtest (2026-11-11), before the first EC2 launch.
+The fix had been retyped by hand into cloud-init.yaml (not yet committed).
+
+$ (multipass launch with --cloud-init cloud-init.yaml), end of /var/log/cloud-init-output.log:
+FINISHED SETTING UP DOCKER.
+UFW setup starting...
+...
+ufw is already the newest version (0.36.2-6).
+/var/lib/cloud/instance/scripts/runcmd: 35: CLOUD: parameter not set
+2026-11-11 12:47:29,953 - cc_scripts_user.py[WARNING]: Failed to run module scripts_user (scripts in /var/lib/cloud/instance/scripts)
+2026-11-11 12:47:29,953 - log_util.py[WARNING]: Running module scripts_user (<module 'cloudinit.config.cc_scripts_user' from '/usr/lib/python3/dist-packages/cloudinit/config/cc_scripts_user.py'>) failed
+Cloud-init v. 26.1-0ubuntu1~24.04.1 finished at Wed, 11 Nov 2026 12:47:29 +0000. Datasource DataSourceNoCloud [seed=/dev/vda].  Up 59.57 seconds
+(apt output trimmed)
+
+$ multipass exec devboxtest -- sudo sed -n '30,40p' /var/lib/cloud/instance/scripts/runcmd
+  docker-compose-plugin
+echo "FINISHED SETTING UP DOCKER."
+
+echo "UFW setup starting..."
+apt install -y ufw
+$CLOUD=$(cloud-init query v1.cloud_name 2>/dev/null || echo unknown)
+echo 'CLOUD= $CLOUD'
+if [ $CLOUD = 'aws'] then
+  # EC2: SSH arrives from my public IP, not from the VPC gateway.
+  # The security group limits the source to my IP; UFW opens the port.
+  ufw allow 22/tcp comment 'SSH, source limited by EC2 security group'
+
+$ git diff cloud-init.yaml   (relevant lines only)
++    $CLOUD=$(cloud-init query v1.cloud_name 2>/dev/null || echo unknown)
++    echo 'CLOUD= $CLOUD'
++    if [ $CLOUD = 'aws'] then
+(ssh_pwauth: false was also missing from the uncommitted file)
+
+Corrected lines, committed in a988013:
+    CLOUD=$(cloud-init query v1.cloud_name 2>/dev/null || echo unknown)
+    echo "Cloud= $CLOUD"
+    if [ "$CLOUD" = 'aws' ]; then
+
+Same file on EC2 (t4g.small, ap-southeast-1), first boot:
+$ cloud-init status --long
+status: done
+extended_status: done
+detail: DataSourceEc2Local
+errors: []
+recoverable_errors: {}
+$ sudo ufw status verbose   (rules only)
+22/tcp                     ALLOW IN    Anywhere                   # SSH, source limited by EC2 security group
+80/tcp                     ALLOW IN    Anywhere

@@ -1,0 +1,309 @@
+AWS EC2 run, 2026-11-11. Raw terminal output, copied from the session (not edited except where marked).
+Instance: i-0d20abd6ac32258a5 (devbox-ec2), t4g.small, ap-southeast-1a
+AMI: ami-0836748b3c49a22a5 (ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20261017)
+Built from: cloud-init.yaml at commit a988013, uploaded as user data
+Launch time (console): Wed Nov 11 2026 21:50:11 GMT+0800 = 13:50:11 UTC
+Public IPv4 56.10.63.114 (auto-assigned, released at termination)
+
+==== Host key check (Mac) ====
+System log (Actions > Monitor and troubleshoot > Get system log), ED25519 host key:
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyJ+H2mxEMqEjsNfBiS3wa+hXmVBKmZ1wOkTZVI5VgQ root@ip-172-31-33-11
+
+$ echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyJ+H2mxEMqEjsNfBiS3wa+hXmVBKmZ1wOkTZVI5VgQ' | ssh-keygen -lf -
+256 SHA256:p/R3+E9DK/9X5pSSgNOrjLqDmctrpNho7kNV07vZBt4 no comment (ED25519)
+
+$ ssh ubuntu@$IP -i ~/.ssh/id_devbox
+The authenticity of host '56.10.63.114 (56.10.63.114)' can't be established.
+ED25519 key fingerprint is: SHA256:p/R3+E9DK/9X5pSSgNOrjLqDmctrpNho7kNV07vZBt4
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '56.10.63.114' (ED25519) to the list of known hosts.
+Connection closed by 56.10.63.114 port 22
+(closed because the prompt was left open longer than sshd's 2-minute LoginGraceTime; reconnected below)
+
+==== SSH login with my key (Mac) ====
+$ ssh ubuntu@$IP -i ~/.ssh/id_devbox
+Welcome to Ubuntu 24.04.5 LTS (GNU/Linux 7.0.0-1014-aws aarch64)
+
+ System information as of Wed Nov 11 14:06:42 UTC 2026
+
+  System load:  0.0               Temperature:           -273.1 C
+  Usage of /:   39.1% of 6.71GB   Processes:             150
+  Memory usage: 17%               Users logged in:       0
+  Swap usage:   0%                IPv4 address for ens5: 172.31.33.11
+
+42 updates can be applied immediately.
+23 of these updates are standard security updates.
+(rest of the welcome text trimmed)
+
+==== On the instance ====
+ubuntu@ip-172-31-33-11:~$ cloud-init status --wait --long
+status: done
+extended_status: done
+boot_status_code: enabled-by-generator
+last_update: Thu, 01 Jan 1970 00:01:45 +0000
+detail: DataSourceEc2Local
+errors: []
+recoverable_errors: {}
+
+ubuntu@ip-172-31-33-11:~$ sudo ufw status verbose
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    Anywhere                   # SSH, source limited by EC2 security group
+80/tcp                     ALLOW IN    Anywhere
+22/tcp (v6)                ALLOW IN    Anywhere (v6)              # SSH, source limited by EC2 security group
+80/tcp (v6)                ALLOW IN    Anywhere (v6)
+
+ubuntu@ip-172-31-33-11:~$ sudo tail -n 1 /var/log/cloud-init-output.log
+Cloud-init v. 26.1-0ubuntu1~24.04.1 finished at Wed, 11 Nov 2026 13:52:01 +0000. Datasource DataSourceEc2Local.  Up 105.47 seconds
+
+ubuntu@ip-172-31-33-11:~$ sudo cloud-init analyze show | tail -n 5
+Finished stage: (modules-final) 52.89700 seconds
+
+Total Time: 56.66800 seconds
+
+1 boot records analyzed
+
+ubuntu@ip-172-31-33-11:~$ sudo cloud-init analyze blame | head -n 8
+-- Boot Record 01 --
+     37.19300s (modules-final/config-scripts_user)
+     15.56800s (modules-final/config-package_update_upgrade_install)
+     01.46300s (init-local/search-Ec2Local)
+     00.96600s (init-network/config-ssh)
+     00.15100s (init-network/config-users_groups)
+     00.06500s (init-network/config-growpart)
+     00.06200s (modules-config/config-apt_configure)
+
+ubuntu@ip-172-31-33-11:~$ sudo cloud-init schema --system
+Found cloud-config data types: user-data, network-config
+
+1. user-data at /var/lib/cloud/instances/i-0d20abd6ac32258a5/cloud-config.txt:
+  Valid schema user-data
+
+2. network-config at /var/lib/cloud/instances/i-0d20abd6ac32258a5/network-config.json:
+  Valid schema network-config
+
+ubuntu@ip-172-31-33-11:~$ sudo cloud-init query -f '{{v1.cloud_name}} {{v1.region}} {{v1.availability_zone}} {{ds.meta_data.instance_type}} {{ds.meta_data.ami_id}}'
+aws ap-southeast-1 ap-southeast-1a t4g.small ami-0836748b3c49a22a5
+
+ubuntu@ip-172-31-33-11:~$ uname -m
+aarch64
+
+ubuntu@ip-172-31-33-11:~$ id
+uid=1000(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),4(adm),24(cdrom),27(sudo),30(dip),104(lxd),1000(docker)
+
+ubuntu@ip-172-31-33-11:~$ docker --version
+Docker version 29.9.3, build 5457199
+
+ubuntu@ip-172-31-33-11:~$ docker compose version
+Docker Compose version v5.7.1
+
+ubuntu@ip-172-31-33-11:~$ docker run --rm hello-world
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+58dee6a49ef1: Pull complete
+c3bdf82c34d1: Download complete
+Digest: sha256:c567b231f65614688711a75f31518a064258a51d442117a3e771a3a8fdba78ef
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (arm64v8)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+(rest of the hello-world text trimmed)
+
+ubuntu@ip-172-31-33-11:~$ systemctl is-enabled docker
+enabled
+
+ubuntu@ip-172-31-33-11:~$ sudo sshd -T | grep -E '^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin)'
+permitrootlogin without-password
+pubkeyauthentication yes
+passwordauthentication no
+kbdinteractiveauthentication no
+
+ubuntu@ip-172-31-33-11:~$ passwd -S
+ubuntu L 2026-11-11 0 99999 7 -1
+
+ubuntu@ip-172-31-33-11:~$ TOKEN=$(curl -s -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')
+ubuntu@ip-172-31-33-11:~$ curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/user-data | head -n 3
+#cloud-config
+package_update: true
+ssh_pwauth: false
+
+==== Password login refused (Mac) ====
+$ ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password,keyboard-interactive ubuntu@"$IP"
+ubuntu@56.10.63.114: Permission denied (publickey).
+
+==== Boot time ====
+Launch time            13:50:11 UTC (console, 21:50:11 GMT+8)
+cloud-init finished    13:52:01 UTC (last line of cloud-init-output.log)
+Launch to configured   110 s
+Boot to configured     105.47 s (Up 105.47 seconds)
+cloud-init stages      56.668 s (analyze show Total Time; modules-final 52.897 s)
+Slowest modules        scripts_user 37.193 s (my runcmd: Docker install + UFW), package_update 15.568 s (apt update)
+
+==== Same commit on local Multipass (Mac, Apple Silicon), 2026-11-11 ====
+HEAD a988013, cloud-init.yaml unmodified.
+
+$ time (multipass launch noble --name devboxtest --cpus 2 --memory 2G --disk 15G --cloud-init cloud-init.yaml && multipass exec devboxtest -- cloud-init status --wait --long)
+Launched: devboxtest
+status: done
+extended_status: done
+boot_status_code: enabled-by-generator
+last_update: Thu, 01 Jan 1970 00:01:17 +0000
+detail: DataSourceNoCloud [seed=/dev/vda]
+errors: []
+recoverable_errors: {}
+( multipass launch noble --name devboxtest --cpus 2 --memory 2G --disk 15G   )  0.02s user 0.01s system 0% cpu 1:24.86 total
+
+$ multipass exec devboxtest -- sudo ufw status verbose
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    192.168.252.1              # Macbook SSH
+80/tcp                     ALLOW IN    Anywhere
+80/tcp (v6)                ALLOW IN    Anywhere (v6)
+
+$ multipass exec devboxtest -- cloud-init query v1.cloud_name
+multipass
+
+==== Comparison (same file, commit a988013) ====
+Launch to configured   EC2 t4g.small 110 s | Multipass (2 vCPU, 2 GiB) 84.86 s
+SSH rule               EC2: 22/tcp from Anywhere, source limited by the security group | Multipass: 22/tcp from 192.168.252.1 (my Mac)
+
+==== Same commit on my local Multipass VM (Mac, 2026-11-11, after EC2 teardown) ====
+$ git log --oneline -1
+a988013 fix: allow SSH on EC2, where the default gateway is not my Mac
+(cloud-init.yaml had no uncommitted changes)
+
+$ time (multipass launch noble --name devboxtest --cpus 2 --memory 2G --disk 15G --cloud-init cloud-init.yaml && multipass exec devboxtest -- cloud-init status --wait --long)
+Launched: devboxtest
+status: done
+extended_status: done
+boot_status_code: enabled-by-generator
+last_update: Thu, 01 Jan 1970 00:01:14 +0000
+detail: DataSourceNoCloud [seed=/dev/vda]
+errors: []
+recoverable_errors: {}
+( multipass launch noble --name devboxtest --cpus 2 --memory 2G --disk 15G   )  0.03s user 0.02s system 0% cpu 1:22.53 total
+
+$ multipass exec devboxtest -- sudo ufw status verbose
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    192.168.252.1              # Macbook SSH
+80/tcp                     ALLOW IN    Anywhere
+80/tcp (v6)                ALLOW IN    Anywhere (v6)
+
+$ multipass exec devboxtest -- cloud-init query v1.cloud_name
+multipass
+
+$ multipass exec devboxtest -- sudo tail -n 1 /var/log/cloud-init-output.log
+Cloud-init v. 26.1-0ubuntu1~24.04.1 finished at Wed, 11 Nov 2026 15:29:12 +0000. Datasource DataSourceNoCloud [seed=/dev/vda].  Up 74.89 seconds
+
+$ multipass exec devboxtest -- sudo cloud-init analyze show | tail -n 5
+Finished stage: (modules-final) 36.17800 seconds
+
+Total Time: 37.46500 seconds
+
+1 boot records analyzed
+
+$ multipass exec devboxtest -- sudo cloud-init analyze blame | head -n 8
+-- Boot Record 01 --
+     28.65100s (modules-final/config-scripts_user)
+     07.49800s (modules-final/config-package_update_upgrade_install)
+     00.45900s (init-network/config-ssh)
+     00.39700s (init-network/config-growpart)
+     00.08200s (modules-config/config-grub_dpkg)
+     00.04000s (init-network/config-resizefs)
+     00.03600s (init-network/config-users_groups)
+
+==== Comparison: old devbox VM (commit 29923b3, first boot 2026-11-03) ====
+$ multipass exec devbox -- sudo tail -n 1 /var/log/cloud-init-output.log
+Cloud-init v. 26.1-0ubuntu1~24.04.1 finished at Tue, 03 Nov 2026 01:40:06 +0000. Datasource DataSourceNoCloud [seed=/dev/vda].  Up 43.84 seconds
+
+$ multipass exec devbox -- sudo cloud-init analyze show | tail -n 5
+Finished stage: (modules-final) 36.13600 seconds
+
+Total Time: 37.24000 seconds
+
+1 boot records analyzed
+
+$ multipass exec devbox -- sudo cloud-init analyze blame | head -n 8
+-- Boot Record 01 --
+     24.84000s (modules-final/config-scripts_user)
+     11.26600s (modules-final/config-package_update_upgrade_install)
+     00.44500s (init-network/config-growpart)
+     00.19500s (init-network/config-ssh)
+     00.08300s (modules-config/config-grub_dpkg)
+     00.04300s (init-network/config-resizefs)
+     00.03600s (init-network/config-users_groups)
+
+Note on devbox: it was suspended, and Multipass resumed it to run these commands. Resuming is not
+a boot, so the values above come from its first boot on Nov 3 (finished 01:40:06 UTC, 1 boot record).
+
+==== Multipass: where the extra 30 s went ====
+                              devbox (29923b3, Nov 3)   devboxtest (a988013, Nov 11)   Difference
+Launch to configured (time)   51.9 s                    82.5 s                         +30.6 s
+Boot to configured (Up)       43.84 s                   74.89 s                        +31.05 s
+Before boot (time - Up)       8.1 s                     7.6 s                          -0.5 s
+cloud-init stages (Total)     37.24 s                   37.47 s                        +0.23 s
+  scripts_user (my runcmd)    24.84 s                   28.65 s                        +3.81 s
+  package_update (apt update) 11.27 s                   7.50 s                         -3.77 s
+
+Result: the extra time is not in cloud-init and not in my file. cloud-init's own work is the
+same (37.2 s vs 37.5 s), and my runcmd's +3.8 s is cancelled by a faster apt update (-3.8 s).
+Multipass's work before boot is the same (about 8 s). All of the extra ~31 s happened inside the
+VM's boot but outside cloud-init's stages (kernel, systemd, or waiting between stages).
+
+$ multipass exec devboxtest -- systemd-analyze
+Startup finished in 1.596s (kernel) + 1min 13.320s (userspace) = 1min 14.917s
+graphical.target reached after 36.990s in userspace.
+
+$ multipass exec devboxtest -- systemd-analyze critical-chain cloud-final.service
+cloud-final.service +36.314s
+└─multi-user.target @36.989s
+  └─docker.service @1min 10.690s +212ms
+    └─docker.socket @1min 10.688s +1ms
+      └─sysinit.target @4.239s
+        └─cloud-init.service @3.136s +1.102s
+          └─systemd-networkd-wait-online.service @1.346s +1.784s
+            └─systemd-networkd.service @1.326s +15ms
+              └─network-pre.target @1.314s
+                └─cloud-init-local.service @762ms +551ms
+                  └─systemd-remount-fs.service @275ms +16ms
+                    └─systemd-fsck-root.service @237ms +16ms
+                      └─systemd-journald.socket @190ms
+                        └─-.mount @170ms
+                          └─-.slice @170ms
+
+When the final stage (my runcmd) started, seconds after boot = Up - modules-final:
+  devbox      43.84 - 36.14 = 7.7 s
+  devboxtest  74.89 - 36.18 = 38.7 s  (systemd agrees: 1.6 s kernel + multi-user.target at 37.0 s)
+The final stage then took the same ~36 s on both. So the extra ~31 s is waiting before
+cloud-final started: sysinit was reached at 4.2 s, multi-user.target only at 37.0 s.
+The critical chain under multi-user.target is not usable for this: it lists docker.service
+at 1min 10s, which is after multi-user.target, because Docker was installed during this boot
+and systemd draws the chain from the units that exist now.
+Not measured: which unit delayed multi-user.target (systemd-analyze blame was not run before
+devboxtest was deleted).
