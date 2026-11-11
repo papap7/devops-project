@@ -4,7 +4,7 @@ A self-directed learning project: a tested Flask app, packaged in Docker, built 
 
 I am building it phase by phase to learn DevOps fundamentals, and I keep notes on everything that breaks in [`docs/incident-log.md`](docs/incident-log.md).
 
-## Status (updated November 11, 2026)
+## Status (updated November 12, 2026)
 
 | Phase | What | Status |
 |---|---|---|
@@ -15,7 +15,7 @@ I am building it phase by phase to learn DevOps fundamentals, and I keep notes o
 | 5 | Infrastructure as code with Terraform | Not started |
 | 6 | Monitoring (Prometheus, Grafana), docs, demo | Not started |
 
-Planned finish: December 1, 2026.
+Next: finish Phase 2 (the Dockerfile), then Phase 3 (CI). Phases 4 to 6 have no fixed end date.
 
 ## Planned architecture
 
@@ -40,7 +40,7 @@ On November 11, 2026 I launched the same `cloud-init.yaml` (commit [`a988013`](h
 | Region | `ap-southeast-1` (Singapore) |
 | Launch to cloud-init done | 110 s on EC2; 82.5 s on my local Multipass VM, same commit |
 | Checks | `status: done` with no errors; `docker run hello-world` (arm64); UFW active; SSH key login works, password login refused |
-| Network | The security group allows only SSH, only from my IP; UFW denies all other incoming traffic |
+| Network | The security group allows only SSH, only from my IP. UFW allows SSH and port 80 (for the app in later phases) and denies all other incoming traffic; port 80 is not reachable from outside because the security group does not open it |
 
 ![EC2 instance summary: t4g.small running in ap-southeast-1, no Elastic IP, no IAM role, IMDSv2 required](docs/evidence/img/aws-ec2-instance1.png)
 
@@ -65,3 +65,4 @@ docs/                 incident log and evidence for each phase
 
 - This is a learning project. Decisions and mistakes are documented rather than hidden.
 - No secrets are stored in this repository.
+- I used Claude (Anthropic's AI assistant) as a reviewer and pair programmer on parts of this project, which is why it appears under Contributors on the commits it co-authored.
