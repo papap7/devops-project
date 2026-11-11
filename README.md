@@ -4,11 +4,11 @@ A self-directed learning project: a tested Flask app, packaged in Docker, built 
 
 I am building it phase by phase to learn DevOps fundamentals, and I keep notes on everything that breaks in [`docs/incident-log.md`](docs/incident-log.md).
 
-## Status (updated November 6, 2026)
+## Status (updated November 11, 2026)
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Self-configuring server (cloud-init, Docker, UFW, SSH key) | Done ([evidence](docs/evidence/phase1.md)) |
+| 1 | Self-configuring server (cloud-init, Docker, UFW, SSH key) | Done ([evidence](docs/evidence/phase1.md)); also verified on AWS EC2 ([evidence](docs/evidence/ec2-raw.txt)) |
 | 2 | Containerize the Flask app | In progress: Flask app with `/health` and `/version` runs locally ([evidence](docs/evidence/phase2.md)); Dockerfile next |
 | 3 | CI with GitHub Actions (test, build, push to GHCR) | Not started |
 | 4 | Automated deployment (pull-based, health check, rollback) | Not started |
@@ -29,6 +29,22 @@ Planned finish: December 1, 2026.
 ## Why a local VM
 
 I chose to run everything locally so the project costs nothing and does not depend on any cloud account. The pieces map to cloud services, and I will document that mapping in this README when the project is further along.
+
+## Verified on AWS EC2
+
+On November 11, 2026 I launched the same `cloud-init.yaml` (commit [`a988013`](https://github.com/papap7/devops-project/commit/a988013)) as EC2 user data. Nothing was done by hand after launch, and the instance was terminated after the test.
+
+| Item | Result |
+|---|---|
+| Instance | `t4g.small` (AWS Graviton, arm64, 2 vCPU, 2 GiB), Ubuntu Server 24.04 LTS |
+| Region | `ap-southeast-1` (Singapore) |
+| Launch to cloud-init done | 110 s on EC2; 82.5 s on my local Multipass VM, same commit |
+| Checks | `status: done` with no errors; `docker run hello-world` (arm64); UFW active; SSH key login works, password login refused |
+| Network | The security group allows only SSH, only from my IP; UFW denies all other incoming traffic |
+
+Before the first launch I found that my UFW rule would have locked me out on EC2: it allowed SSH only from the VM's default gateway, which is my Mac on Multipass but the VPC router on EC2. The file now checks the platform with `cloud-init query v1.cloud_name` and, on AWS, leaves the source restriction to the security group. See [incident #6](docs/incident-log.md).
+
+Evidence: [`docs/evidence/ec2-raw.txt`](docs/evidence/ec2-raw.txt) (all command output) and [`docs/evidence/img/`](docs/evidence/img/) (console screenshots).
 
 ## Repository layout
 
