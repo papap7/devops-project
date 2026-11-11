@@ -1,5 +1,6 @@
 #cloud-config
 package_update: true
+ssh_pwauth: false
 
 groups:
   - docker
@@ -46,13 +47,21 @@ runcmd:
       docker-compose-plugin
     echo "FINISHED SETTING UP DOCKER."
 
-    echo "Getting the Default Gateway Address of the VM..."
-    GATEWAY_IP=$(ip route | awk '/^default/ {print $3}')
-    echo "${GATEWAY_IP:?GATEWAY_IP is empty}"
-
     echo "UFW setup starting..."
     apt install -y ufw
-    ufw allow proto tcp from $GATEWAY_IP to any port 22 comment 'Macbook SSH'
+    CLOUD=$(cloud-init query v1.cloud_name 2>/dev/null || echo unknown)
+    echo "Cloud= $CLOUD"
+    if [ "$CLOUD" = 'aws' ]; then
+      # EC2: SSH arrives from my public IP, not from the VPC gateway.
+      # The security group limits the source to my IP; UFW opens the port.
+      ufw allow 22/tcp comment 'SSH, source limited by EC2 security group'
+    else
+      # Multipass: the default gateway is my Mac.
+      echo "Getting the Default Gateway Address of the VM..."
+      GATEWAY_IP=$(ip route | awk '/^default/ {print $3}')
+      echo "${GATEWAY_IP:?GATEWAY_IP is empty}"
+      ufw allow proto tcp from "$GATEWAY_IP" to any port 22 comment 'Macbook SSH'
+    fi
     ufw allow 80/tcp
     ufw --force enable
     echo "Finished UFW setup."
